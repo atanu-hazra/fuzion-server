@@ -111,17 +111,16 @@ const emailRegistration = asyncHandler(async (req, res) => {
 
 
 const verifyEmail = asyncHandler(async (req, res) => {
-    console.log("req.cookies", req.cookies);
 
     const { verificationOTP } = req.body;
 
-    const token = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
-    if (!token) {
+    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    if (!incomingToken) {
         throw new ApiError(400, 'Token is required');
     }
 
     // Verify JWT and extract email
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(incomingToken);
     console.log("decoded", decoded)
     const email = decoded.data;
 
@@ -141,24 +140,17 @@ const verifyEmail = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while deleting the old registration.")
     }
 
-    const cookiesOptions = {
-        httpOnly: true,
-        secure: false,
-        maxAge: 30 * 60 * 1000,
-    }
-
-    // encrypting verified email
-    const verifiedEmail = encrypt(email)
+    const token = generateToken(email);
 
     return res
         .status(200)
-        .cookie("verifiedEmail", verifiedEmail, cookiesOptions)
         .json(
             new ApiResponse(
                 200,
                 {
                     email,
-                    verified: true
+                    verified: true,
+                    token
                 },
                 "Email verification successful."
             )
@@ -169,24 +161,23 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
 const registerUser = asyncHandler(async (req, res) => {
 
-    // 1. Getting user details
-
-    const verifiedEmail = req.cookies.verifiedEmail
-
-    if (!verifiedEmail) {
-        throw new ApiError(400, "Session expired.")
+    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    if (!incomingToken) {
+        throw new ApiError(400, 'Token is required');
     }
 
-    const email = decrypt(verifiedEmail.encryptedData, verifiedEmail.iv)
+    const decoded = verifyToken(incomingToken);
+    console.log("decoded", decoded)
+    const email = decoded.data;
 
     if (!email) {
-        throw new ApiError(400, "Something went wrong while decryption.")
+        throw new ApiError(400, "Something went wrong while decoding the email.")
     }
+
+    // 1. Getting user details
 
     const { fullName, username, password } = req.body
 
-    // console.log("email:", email)
-    // console.log("username:", username)
 
     // 2. Basic Validation
 

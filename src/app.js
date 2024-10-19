@@ -1,7 +1,7 @@
 import express from "express"
 import cors from 'cors'
 import cookieParser from "cookie-parser"
-
+import { ApiError } from "./utils/ApiError.js"
 
 const app = express()
 
@@ -62,5 +62,20 @@ app.use("/api/v1/savedtweets", savedTweetRouter)
 app.use("/api/v1/reports", reportRouter)
 
 // http://localhost:8000/api/v1/users/register
+
+// middleware to send proper error response
+app.use((err, req, res, next) => {
+    // Default status code and message
+    let statusCode = err.statusCode || 500;
+    let message = err.message || 'Internal Server Error';
+    let errorResponse = { status: statusCode, message };
+
+    if (err instanceof ApiError) {
+        errorResponse.error = err.error || [];
+    }
+
+    // Send the JSON response for API requests
+    return res.status(statusCode).json(errorResponse);
+});
 
 export { app }
