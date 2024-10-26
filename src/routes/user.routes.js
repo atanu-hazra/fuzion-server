@@ -13,6 +13,8 @@ import {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    removeUserAvatar,
+    removeUserCoverImage,
     emailRegistration,
     verifyEmail,
     sendForgotPasswordOTP,
@@ -53,13 +55,13 @@ router.route("/forgot-password").post(forgotPassword)
 // secured routes
 router.route("/logout").post(verifyJWT, logoutUser)
 
-router.route("/refresh-token").post(refreshAccessToken)
+router.route("/refresh-access-token").post(refreshAccessToken)
 
 router.route("/change-password").post(verifyJWT, changeCurrentPassword)
 
 router.route("/current-user").get(verifyJWT, getCurrentUser)
 
-router.route("/update-user").patch(verifyJWT, updateAccountDetails)
+router.route("/update-profile").patch(verifyJWT, updateAccountDetails)
 
 router.route("/update-avatar").patch(
     verifyJWT,
@@ -67,18 +69,20 @@ router.route("/update-avatar").patch(
     updateUserAvatar
 )
 
-router.route("/update-cover-image").patch(
+router.route("/update-cover").patch(
     verifyJWT,
     upload.single("coverImage"),
     updateUserCoverImage
 )
 
-router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
+router.route("/:username").get(getUserChannelProfile)
 
-router.route("/watch-history").get(verifyJWT, getWatchHistory)
+router.route("/v/watch-history").get(verifyJWT, getWatchHistory)
 
 router.route("/delete-user").delete(verifyJWT, deleteAccount)
 
+router.route("/remove-avatar").delete(verifyJWT, removeUserAvatar)
 
+router.route("/remove-cover").delete(verifyJWT, removeUserCoverImage)
 
 export default router

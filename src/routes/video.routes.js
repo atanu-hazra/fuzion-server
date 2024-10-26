@@ -44,7 +44,7 @@ router
 
 router.route("/toggle/publish/:videoId").patch(togglePublishStatus);
 
-router.route("/c/:username").get(getVideosByChannel)
+router.route("/user/:username").get(getVideosByChannel)
 
 
 export default router

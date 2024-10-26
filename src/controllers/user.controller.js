@@ -176,7 +176,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     // 1. Getting user details
 
-    const { fullName, username, password } = req.body
+    const { fullName, username, password, bio = "Welcome to my profile! Excited to connect and share with everyone." } = req.body
 
 
     // 2. Basic Validation
@@ -208,44 +208,40 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "User with username already exists")
     }
 
-    // 4. check for images and check for avatars
+    // // 4. check for images and check for avatars
 
-    let avatarLocalPath;
-    if (req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0) {
-        avatarLocalPath = req.files.avatar[0].path
-    }
+    // let avatarLocalPath;
+    // if (req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0) {
+    //     avatarLocalPath = req.files.avatar[0].path
+    // }
 
-    let coverImageLocalPath;
-    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-        coverImageLocalPath = req.files.coverImage[0].path
-    }
+    // let coverImageLocalPath;
+    // if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+    //     coverImageLocalPath = req.files.coverImage[0].path
+    // }
 
-    // avatar is required, but cover image is optional
-    if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar is required!");
-    }
+    // // 5. upload them to cloudinary, check if uploaded or not
 
-    // 5. upload them to cloudinary, check if uploaded or not
+    // const avatarUploadResult = await uploadOnCloudinary(avatarLocalPath, "image")
+    // const coverImageUploadResult = await uploadOnCloudinary(coverImageLocalPath, "image")
 
-    const avatarUploadResult = await uploadOnCloudinary(avatarLocalPath, "image")
-    const coverImageUploadResult = await uploadOnCloudinary(coverImageLocalPath, "image")
+    // // checking if avatar is uploaded successfully
+    // if (!avatarUploadResult) {
+    //     throw new ApiError(400, "Avatar upload failed!");
+    // }
 
-    // checking if avatar is uploaded successfully
-    if (!avatarUploadResult) {
-        throw new ApiError(400, "Avatar upload failed!");
-    }
-
-    // this will check the cover image upload only if the user uploaded a cover image 
-    if (coverImageLocalPath && !coverImageUploadResult) {
-        throw new ApiError(400, "Cover image upload failed!");
-    }
+    // // this will check the cover image upload only if the user uploaded a cover image 
+    // if (coverImageLocalPath && !coverImageUploadResult) {
+    //     throw new ApiError(400, "Cover image upload failed!");
+    // }
 
     // 6. create user object - create entry in db
 
     const user = await User.create({
         fullName,
-        avatar: avatarUploadResult.url,
-        coverImage: coverImageUploadResult?.url || "",
+        bio,
+        avatar: "",
+        coverImage: "",
         email,
         password,
         username: username.toLowerCase()
@@ -371,7 +367,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 const refreshAccessToken = asyncHandler(async (req, res) => {
     try {
 
-        const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
+        const incomingRefreshToken = req.body.refreshToken || req.cookies?.refreshToken
 
         if (!incomingRefreshToken) {
             throw new ApiError(401, "Unauthorized request!")
@@ -466,48 +462,46 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-
-    const { fullName, email, username } = req.body
+    console.log(req.body)
+    const { fullName, bio, username } = req.body
 
     // while updating files there should be a different end-point
 
-    if (!fullName.trim() || !email.trim() || !username.trim()) {
-        throw new ApiError(400, "Full name, email, and username are required.");
+    if (!String(fullName).trim() || !String(username).trim()) {
+        throw new ApiError(400, "Full name and username are required.");
     }
 
     const user = await User.findById(req.user._id).select("-password -refreshToken")
 
+    console.log(user)
+
     // changing the full name if modified
 
     if (fullName && fullName !== user.fullName) {
-        user.fullName = fullName
+        user.fullName = fullName.trim()
     }
 
-    // Check if the email is already in use by another user
-
-    const isEmailExist = await User.findOne({ email })
-
-    if (isEmailExist && isEmailExist._id.toString() !== user._id.toString()) {
-        throw new ApiError(
-            400,
-            "This email is already linked with another user id."
-        )
+    if (bio && bio !== user.bio) {
+        user.bio = bio.trim()
     }
 
-    user.email = email
 
     // Check if the username is already in use by another user
+    console.log(user.username, username)
 
-    const isUsernameExist = await User.findOne({ username })
+    if (username && user.username !== username) {
 
-    if (isUsernameExist && isUsernameExist._id.toString() !== user._id.toString()) {
-        throw new ApiError(
-            400,
-            "Sorry! This username is not available."
-        )
+        const isUsernameExist = await User.findOne({ username })
+
+        if (isUsernameExist) {
+            throw new ApiError(
+                400,
+                "Sorry! This username is not available."
+            )
+        }
+
+        user.username = username
     }
-
-    user.username = username
 
     await user.save({ validateBeforeSave: false })
 
@@ -598,6 +592,53 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 })
 
+const removeUserAvatar = asyncHandler(async (req, res) => {
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                avatar: ""
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password -refreshToken")
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "Avatar removed successfully!"
+            )
+        )
+})
+
+const removeUserCoverImage = asyncHandler(async (req, res) => {
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                coverImage: ""
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password -refreshToken")
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "Cover image removed successfully!"
+            )
+        )
+})
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params
@@ -605,45 +646,39 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     if (!username) {
         throw new ApiError(400, "username is missing")
     }
+    const userId = req.user?._id; // Safely handle req.user
 
     const channel = await User.aggregate([
         {
             $match: {
-                username: username?.toLowerCase()
-            }
+                username: username?.toLowerCase(),  // Match username case-insensitively
+            },
         },
         {
             $lookup: {
                 from: "subscriptions",
                 localField: "_id",
-                foreignField: "channel",
-                as: "subscribers"
-            }
+                foreignField: "channel",  // Fetch subscribers
+                as: "subscribers",
+            },
         },
         {
             $lookup: {
                 from: "subscriptions",
                 localField: "_id",
-                foreignField: "subscriber",
-                as: "subscribedTo"
-            }
+                foreignField: "subscriber",  // Fetch channels user is subscribed to
+                as: "subscribedTo",
+            },
         },
         {
             $addFields: {
-                subscribersCount: {
-                    $size: "$subscribers"
-                },
-                channelsSubscribedToCount: {
-                    $size: "$subscribedTo"
-                },
-                isSubscribed: {
-                    $cond: {
-                        if: { $in: [req.user._id, "$subscribers.subscriber"] },
-                        then: true,
-                        else: false
-                    }
-                }
-            }
+                subscribersCount: { $size: "$subscribers" },  // Count of subscribers
+                channelsSubscribedToCount: { $size: "$subscribedTo" },  // Count of subscriptions
+                // Check if user is subscribed only if userId exists (authenticated)
+                isSubscribed: userId
+                    ? { $in: [userId, "$subscribers.subscriber"] }  // Checks subscription
+                    : false,  // If no userId, isSubscribed is false
+            },
         },
         {
             $project: {
@@ -654,9 +689,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 isSubscribed: 1,
                 avatar: 1,
                 coverImage: 1,
-            }
-        }
-    ])
+            },
+        },
+    ]);
 
     // console.log("channel: ", channel)
 
@@ -985,6 +1020,8 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    removeUserAvatar,
+    removeUserCoverImage,
     getUserChannelProfile,
     getWatchHistory,
     sendForgotPasswordOTP,
