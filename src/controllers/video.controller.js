@@ -108,6 +108,23 @@ const getVideoById = asyncHandler(async (req, res) => {
             },
             {
                 $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "owner",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullName: 1,
+                                username: 1,
+                                avatar: 1
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $lookup: {
                     from: "likes",
                     localField: "_id",
                     foreignField: "video",
@@ -189,7 +206,8 @@ const getVideoById = asyncHandler(async (req, res) => {
                             then: true,
                             else: false
                         }
-                    }
+                    },
+                    owner: { $arrayElemAt: ["$owner", 0] }
                 }
             }
         ])
@@ -383,7 +401,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
             from: "users", // The name of your User collection
             localField: "owner",
             foreignField: "_id",
-            as: "ownerDetails",
+            as: "owner",
             pipeline: [
                 {
                     $project: {
@@ -398,10 +416,10 @@ const getAllVideos = asyncHandler(async (req, res) => {
     pipeline.push(lookupStage);
 
 
-    // addFields stage to destructure the first element of ownerDetails array
+    // addFields stage to destructure the first element of owner array
     const addFieldsStage = {
         $addFields: {
-            ownerDetails: { $arrayElemAt: ["$ownerDetails", 0] } // Get the first element directly
+            owner: { $arrayElemAt: ["$owner", 0] } // Get the first element directly
         }
     }
     pipeline.push(addFieldsStage);
@@ -413,8 +431,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
                 $or: [
                     { title: { $regex: query, $options: 'i' } },
                     { description: { $regex: query, $options: 'i' } },
-                    { "ownerDetails.fullName": { $regex: query, $options: 'i' } },
-                    { "ownerDetails.username": { $regex: query, $options: 'i' } },
+                    { "owner.fullName": { $regex: query, $options: 'i' } },
+                    { "owner.username": { $regex: query, $options: 'i' } },
                 ]
             })
         }
@@ -508,7 +526,31 @@ const getVideosByChannel = asyncHandler(async (req, res) => {
 
         { $skip: (page - 1) * limit },
 
-        { $limit: parseInt(limit) }
+        { $limit: parseInt(limit) },
+
+        {
+            $lookup: {
+                from: "users", // The name of your User collection
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
+            $addFields: {
+                owner: { $arrayElemAt: ["$owner", 0] } // Get the first element directly
+            }
+        }
 
     ])
 

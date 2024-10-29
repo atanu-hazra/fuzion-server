@@ -456,7 +456,27 @@ const getTweetById = asyncHandler(async (req, res) => {
                 }
             },
             {
+                $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "owner",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullName: 1,
+                                username: 1,
+                                avatar: 1
+                            }
+                        }
+                    ]
+                }
+            },
+            {
                 $addFields: {
+                    owner: {
+                        $arrayElemAt: ["$owner", 0]
+                    },
                     likesCount: {
                         $size: "$likes"
                     },
