@@ -388,7 +388,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         }
 
         const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
-
+        // console.log('accesss token refershed!')
         const cookiesOptions = {
             httpOnly: true,
             secure: false
@@ -646,7 +646,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     if (!username) {
         throw new ApiError(400, "username is missing")
     }
-    const userId = req.user?._id; // Safely handle req.user
+    console.log(req.user)
+    const userId = req.user?._id // Safely handle req.user
 
     const channel = await User.aggregate([
         {
@@ -689,6 +690,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 isSubscribed: 1,
                 avatar: 1,
                 coverImage: 1,
+                bio:1,
             },
         },
     ]);

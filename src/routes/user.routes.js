@@ -75,7 +75,7 @@ router.route("/update-cover").patch(
     updateUserCoverImage
 )
 
-router.route("/:username").get(getUserChannelProfile)
+router.route("/:username").get(verifyJWT, getUserChannelProfile)
 
 router.route("/v/watch-history").get(verifyJWT, getWatchHistory)
 
