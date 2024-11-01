@@ -11,6 +11,6 @@ router.use(verifyJWT);
 
 router.route("/").get(getSavedTweets)
 
-router.route("/:tweetId").patch(toggleSaveTweet)
+router.route("/toggle/:tweetId").patch(toggleSaveTweet)
 
 export default router

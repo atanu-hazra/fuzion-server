@@ -84,6 +84,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 })
 
 
+
 const getVideoById = asyncHandler(async (req, res) => {
 
     const { videoId } = req.params
@@ -96,6 +97,8 @@ const getVideoById = asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid video ID format!");
     }
+
+    const userId = req.user ? req.user._id : null;
 
     let video;
 
@@ -200,13 +203,8 @@ const getVideoById = asyncHandler(async (req, res) => {
                     commentsCount: {
                         $size: "$comments"
                     },
-                    isLikedbyUser: {
-                        $cond: {
-                            if: { $in: [req.user._id, "$likes.likedBy._id"] },
-                            then: true,
-                            else: false
-                        }
-                    },
+                    isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
+                    
                     owner: { $arrayElemAt: ["$owner", 0] }
                 }
             }

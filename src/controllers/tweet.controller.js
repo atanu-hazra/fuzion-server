@@ -166,6 +166,8 @@ const getUserTweets = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User does not exist!")
     }
 
+    // checking for current user
+    const userId = req.user ? req.user._id : null;
 
     // Aggregation pipeline to fetch tweets
     const tweets = await Tweet.aggregate([
@@ -192,10 +194,125 @@ const getUserTweets = asyncHandler(async (req, res) => {
             }
         },
         {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likes",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "likedBy",
+                            foreignField: "_id",
+                            as: "likedBy",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likedBy: { $arrayElemAt: ["$likedBy", 0] }
+                        }
+                    },
+                    {
+                        $project: {
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: "savedtweets",
+                localField: "_id",
+                foreignField: "tweets",
+                as: "savedTweets",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "savedBy",
+                            foreignField: "_id",
+                            as: "savedBy",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            savedBy: { $arrayElemAt: ["$savedBy", 0] }
+                        }
+                    },
+                    {
+                        $project: {
+                            savedBy: 1
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "comments",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: { $arrayElemAt: ["$owner", 0] }
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
             $addFields: {
                 owner: {
-                    $arrayElemAt: ["$owner", 0] // Get the first element directly
-                }
+                    $arrayElemAt: ["$owner", 0]
+                },
+                likesCount: {
+                    $size: "$likes"
+                },
+                commentsCount: {
+                    $size: "$comments"
+                },
+                isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
+                isSavedByUser: userId ? { $in: [userId, "$savedTweets.savedBy._id"] } : false,
             }
         },
         {
@@ -257,6 +374,8 @@ const getAllTweets = asyncHandler(async (req, res) => {
 
     const { page = 1, limit = 20, query, sortBy = "createdAt", sortType = "desc" } = req.query
 
+    const userId = req.user ? req.user._id : null;
+
     // pipeline to filter and find tweets
     const primaryPipeline = [
         {
@@ -277,10 +396,98 @@ const getAllTweets = asyncHandler(async (req, res) => {
             }
         },
         {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likes",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "likedBy",
+                            foreignField: "_id",
+                            as: "likedBy",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likedBy: { $arrayElemAt: ["$likedBy", 0] }
+                        }
+                    },
+                    {
+                        $project: {
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: "savedtweets",
+                let: { tweetId: "$_id", userId: userId },
+                pipeline: [
+                    { $match: { $expr: { $and: [{ $in: ["$$tweetId", "$tweets"] }, { $eq: ["$savedBy", "$$userId"] }] } } },
+                    { $project: { _id: 1 } }
+                ],
+                as: "savedByUser"
+            }
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "comments",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: { $arrayElemAt: ["$owner", 0] }
+                        }
+                    }
+                ]
+            }
+        },
+        {
             $addFields: {
                 owner: {
                     $arrayElemAt: ["$owner", 0]
-                }
+                },
+                likesCount: {
+                    $size: "$likes"
+                },
+                commentsCount: {
+                    $size: "$comments"
+                },
+                isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
+                isSavedByUser: { $gt: [{ $size: "$savedByUser" }, 0] }
             }
         },
         {
@@ -371,6 +578,7 @@ const getTweetById = asyncHandler(async (req, res) => {
     if (!tweetId) {
         throw new ApiError(400, "Tweet ID is missing!")
     }
+    const userId = req.user ? req.user._id : null;
 
     // Check if videoId is a valid MongoDB ObjectId
     if (!mongoose.isValidObjectId(tweetId)) {
@@ -483,13 +691,8 @@ const getTweetById = asyncHandler(async (req, res) => {
                     commentsCount: {
                         $size: "$comments"
                     },
-                    isLikedbyUser: {
-                        $cond: {
-                            if: { $in: [req.user._id, "$likes.likedBy._id"] },
-                            then: true,
-                            else: false
-                        }
-                    }
+                    isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
+                    isSavedByUser: userId ? { $in: [userId, "$savedtweets.savedBy._id"] } : false,
                 }
             }
         ])
