@@ -27,6 +27,7 @@ const reportContent = asyncHandler(async (req, res) => {
     const handleReport = async (contentType, contentId, issue) => {
         let content;
         let oldReport;
+        let newReport;
         let report;
         let reportMessage = '';
         let userId = req.user._id;
@@ -51,18 +52,18 @@ const reportContent = asyncHandler(async (req, res) => {
                 } catch (error) {}
 
                 if (!oldReport) {
-                    report = await Report.create({
+                    newReport = await Report.create({
                         [contentType.modelName.toLowerCase()]: contentId,
                         reportBy: userId,
                         issue
                     });
 
-                    if (!report) {
+                    if (!newReport) {
                         throw new ApiError(400, "Something went wrong while reporting.");
                     }
                 }
 
-                report = oldReport || report;
+                report = oldReport || newReport;
                 reportMessage = `${contentType.modelName} is reported successfully. We will try to solve the issue as soon as possible.`;
             }
         } catch (error) {}
