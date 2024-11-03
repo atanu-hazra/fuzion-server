@@ -38,7 +38,7 @@ router
     .delete(verifyJWT, deleteTweet);
 
 router
-    .route("/find/all")
+    .route("/search")
     .get(optionalAuth, getAllTweets)
 
 export default router

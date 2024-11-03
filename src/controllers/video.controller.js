@@ -387,7 +387,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 const getAllVideos = asyncHandler(async (req, res) => {
 
-    const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc" } = req.query
+    const { page = 1, limit = 10, query, sortBy = "views", sortType = "desc" } = req.query
 
     const pipeline = [];
 

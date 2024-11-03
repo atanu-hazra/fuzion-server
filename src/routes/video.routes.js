@@ -35,7 +35,7 @@ router
     );
 
 router
-    .route("/find/all")
+    .route("/search")
     .get(getAllVideos)
 
 router
