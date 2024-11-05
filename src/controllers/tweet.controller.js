@@ -17,7 +17,7 @@ const createTweet = asyncHandler(async (req, res) => {
     let imagesUrlList = [];
 
     if (req.files && Array.isArray(req.files.images) && req.files.images.length > 0) {
-        
+
         if (req.files.images.length > 10) {
             throw new ApiError(400, "Maximum 10 files can be uploaded at one time.")
         }
@@ -153,14 +153,23 @@ const deleteTweet = asyncHandler(async (req, res) => {
 
 const getUserTweets = asyncHandler(async (req, res) => {
 
-    const { username } = req.params
+    const { usernameOrId } = req.params
     const { page = 1, limit = 20, sortBy = "createdAt", sortType = "desc" } = req.query
 
-    if (!username) {
-        throw new ApiError(400, "username is required.")
+    
+    const isObjectId = mongoose.Types.ObjectId.isValid(usernameOrId);
+
+    const matchConditions = [
+        { username: String(usernameOrId).toLowerCase() }
+    ];
+
+    if (isObjectId) {
+        matchConditions.push({ _id: new mongoose.Types.ObjectId(String(usernameOrId)) });
     }
 
-    const user = await User.findOne({ username })
+    const user = await User.findOne({
+        $or: matchConditions
+    })
 
     if (!user) {
         throw new ApiError(404, "User does not exist!")
@@ -311,8 +320,20 @@ const getUserTweets = asyncHandler(async (req, res) => {
                 commentsCount: {
                     $size: "$comments"
                 },
-                isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
-                isSavedByUser: userId ? { $in: [userId, "$savedTweets.savedBy._id"] } : false,
+                isLikedByUser: userId ? {
+                    $cond: {
+                        if: { $isArray: "$likes.likedBy._id" },
+                        then: { $in: [userId, "$likes.likedBy._id"] },
+                        else: false
+                    }
+                } : false,
+                isSavedByUser: {
+                    $cond: {
+                        if: { $isArray: "$savedByUser" },
+                        then: { $gt: [{ $size: "$savedByUser" }, 0] },
+                        else: false
+                    }
+                }
             }
         },
         {
@@ -486,8 +507,20 @@ const getAllTweets = asyncHandler(async (req, res) => {
                 commentsCount: {
                     $size: "$comments"
                 },
-                isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
-                isSavedByUser: { $gt: [{ $size: "$savedByUser" }, 0] }
+                isLikedByUser: userId ? {
+                    $cond: {
+                        if: { $isArray: "$likes.likedBy._id" },
+                        then: { $in: [userId, "$likes.likedBy._id"] },
+                        else: false
+                    }
+                } : false,
+                isSavedByUser: {
+                    $cond: {
+                        if: { $isArray: "$savedByUser" },
+                        then: { $gt: [{ $size: "$savedByUser" }, 0] },
+                        else: false
+                    }
+                }
             }
         },
         {
@@ -588,6 +621,7 @@ const getTweetById = asyncHandler(async (req, res) => {
     let tweet;
 
     try {
+        console.log(3)
         tweet = await Tweet.aggregate([
             {
                 $match: {
@@ -691,18 +725,28 @@ const getTweetById = asyncHandler(async (req, res) => {
                     commentsCount: {
                         $size: "$comments"
                     },
-                    isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
-                    isSavedByUser: userId ? { $in: [userId, "$savedtweets.savedBy._id"] } : false,
+                    isLikedByUser: userId ? {
+                        $cond: {
+                            if: { $isArray: "$likes.likedBy._id" },
+                            then: { $in: [userId, "$likes.likedBy._id"] },
+                            else: false
+                        }
+                    } : false,
+                    isSavedByUser: userId ? {
+                        $cond: {
+                            if: { $isArray: "$savedtweets.savedBy._id" },
+                            then: { $in: [userId, "$savedtweets.savedBy._id"] },
+                            else: false
+                        }
+                    } : false,
                 }
             }
         ])
-
         if (!tweet || tweet.length === 0) {
-            throw new ApiError(404, "Video not found.");
+            throw new ApiError(404, "Tweet not found.");
         }
-
     } catch (error) {
-        throw new ApiError(500, "Aggregation error: " + err.message);
+        throw new ApiError(500, "Aggregation error: " + error);
     }
 
     return res

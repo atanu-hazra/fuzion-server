@@ -28,7 +28,7 @@ router
     );
 
 router
-    .route("/user/:username")
+    .route("/user/:usernameOrId")
     .get(optionalAuth, getUserTweets);
 
 router
@@ -38,7 +38,7 @@ router
     .delete(verifyJWT, deleteTweet);
 
 router
-    .route("/search")
+    .route("/search/all")
     .get(optionalAuth, getAllTweets)
 
 export default router

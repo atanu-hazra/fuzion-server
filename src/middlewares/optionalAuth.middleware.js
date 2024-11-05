@@ -6,15 +6,19 @@ import { User } from "../models/user.model.js";
 export const optionalAuth = asyncHandler(async (req, _, next) => {
     try {
 
-        // console.log("req.cookies", req.cookies)
-
         const token = req.headers.authorization?.split(' ')[1] || req.cookies?.accessToken
 
         if (!token) {
             return next()
         }
 
-        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+        let decodedToken;
+        try {
+            decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+        } catch (error) {
+            console.warn("Token verification failed:", error.message);
+            return next()
+        }
 
         const user = await User.findById(decodedToken?._id).select("-password -refreshToken")
         if (!user) {

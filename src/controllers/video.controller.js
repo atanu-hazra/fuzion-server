@@ -203,8 +203,13 @@ const getVideoById = asyncHandler(async (req, res) => {
                     commentsCount: {
                         $size: "$comments"
                     },
-                    isLikedByUser: userId ? { $in: [userId, "$likes.likedBy._id"] } : false,
-                    
+                    isLikedByUser: userId ? {
+                        $cond: {
+                            if: { $isArray: "$likes.likedBy._id" },
+                            then: { $in: [userId, "$likes.likedBy._id"] },
+                            else: false
+                        }
+                    } : false,
                     owner: { $arrayElemAt: ["$owner", 0] }
                 }
             }
@@ -503,14 +508,26 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
 
 const getVideosByChannel = asyncHandler(async (req, res) => {
-    const { username } = req.params
+    const { usernameOrId } = req.params
     const { page = 1, limit = 50, sortBy = "createdAt", sortType = "desc" } = req.query
 
-    if (!username) {
-        throw new ApiError(400, "Channel username is required!")
+    if (!usernameOrId) {
+        throw new ApiError(400, "username or channelId is required")
     }
 
-    const channel = await User.findOne({ username })
+    const isObjectId = mongoose.Types.ObjectId.isValid(usernameOrId);
+
+    const matchConditions = [
+        { username: String(usernameOrId).toLowerCase() }
+    ];
+
+    if (isObjectId) {
+        matchConditions.push({ _id: new mongoose.Types.ObjectId(String(usernameOrId)) });
+    }
+
+    const channel = await User.findOne({
+        $or: matchConditions
+    })
 
     if (!channel) {
         throw new ApiError(404, "Channel does not exist.")

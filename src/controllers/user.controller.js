@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Registration } from "../models/registration.model.js";
 import { sendVerificationMail, sendForgotPasswordMail } from "../utils/sendEmail.js";
 import jwt from 'jsonwebtoken';
-import mongoose from "mongoose";
+import mongoose, { Mongoose } from "mongoose";
 import { Video } from "../models/video.model.js";
 import { Tweet } from "../models/tweet.model.js";
 import { Subscription } from "../models/subscription.model.js";
@@ -641,19 +641,29 @@ const removeUserCoverImage = asyncHandler(async (req, res) => {
 })
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-    const { username } = req.params
+    const { usernameOrId } = req.params
 
-    if (!username) {
-        throw new ApiError(400, "username is missing")
+    if (!usernameOrId) {
+        throw new ApiError(400, "username or channelId is required")
     }
-    console.log(req.user)
-    const userId = req.user?._id // Safely handle req.user
+
+    const userId = req.user?._id || null
+
+    const isObjectId = mongoose.Types.ObjectId.isValid(usernameOrId);
+
+    const matchConditions = [
+        { username: usernameOrId.toLowerCase() }  // Match by username case-insensitively
+    ];
+
+    if (isObjectId) {
+        matchConditions.push({ _id: new mongoose.Types.ObjectId(String(usernameOrId)) }); // Match by user ID if valid
+    }
 
     const channel = await User.aggregate([
         {
             $match: {
-                username: username?.toLowerCase(),  // Match username case-insensitively
-            },
+                $or: matchConditions
+            }
         },
         {
             $lookup: {
@@ -690,7 +700,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 isSubscribed: 1,
                 avatar: 1,
                 coverImage: 1,
-                bio:1,
+                bio: 1,
             },
         },
     ]);
@@ -1010,6 +1020,248 @@ const deleteAccount = asyncHandler(async (req, res) => {
 })
 
 
+const getAllUsers = asyncHandler(async (req, res) => {
+    const { query } = req.query
+
+    const userId = req.user?._id || null
+
+    const users = await User.aggregate([
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",  // Fetch subscribers
+                as: "subscribers",
+            },
+        },
+        {
+            $addFields: {
+                isSubscribed: userId
+                    ? { $in: [userId, "$subscribers.subscriber"] }  // Checks subscription
+                    : false,  // If no userId, isSubscribed is false
+            },
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                bio: 1,
+            },
+        },
+        {
+            $match: {
+                ...(query && {
+                    $or: [
+                        { fullName: { $regex: query, $options: 'i' } },
+                        { username: { $regex: query, $options: 'i' } },
+                    ]
+                })
+            }
+        }
+    ])
+
+    if (!users || !users.length) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        users: [],
+                    },
+                    "Sorry! No users found."
+                )
+            )
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    users,
+                },
+                "Users fetched successfully."
+            )
+        )
+
+})
+
+const getUserFollowers = asyncHandler(async (req, res) => {
+
+    const { channelId } = req.params
+
+    if (!channelId) {
+        throw new ApiError(400, "channelId is missing")
+    }
+
+    let channelObjectId;
+
+    try {
+        channelObjectId = new mongoose.Types.ObjectId(String(channelId));
+    } catch (error) {
+        throw new ApiError(400, "Invalid channelId format");
+    }
+
+    const userId = req.user?._id || null
+
+    const followers = await User.aggregate([
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo",
+            },
+        },
+        {
+            $addFields: {
+                isSubscribed: userId
+                    ? { $in: [userId, "$subscribers.subscriber"] }
+                    : false,
+            },
+        },
+        {
+            $match: {
+                subscribedTo: {
+                    $elemMatch: { channel: channelObjectId }
+                },
+            },
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                bio: 1,
+            },
+        },
+
+    ]);
+
+    if (!followers || !followers.length) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        followers: [],
+                    },
+                    "Sorry! No followers found."
+                )
+            )
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    followers,
+                },
+                "Followers fetched successfully."
+            )
+        )
+})
+
+const getUserFollowings = asyncHandler(async (req, res) => {
+
+    const { channelId } = req.params
+
+    if (!channelId) {
+        throw new ApiError(400, "channelId is missing")
+    }
+
+    let channelObjectId;
+
+    try {
+        channelObjectId = new mongoose.Types.ObjectId(String(channelId));
+    } catch (error) {
+        throw new ApiError(400, "Invalid channelId format");
+    }
+
+    const userId = req.user?._id || null
+
+    const followings = await User.aggregate([
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        {
+            $addFields: {
+                isSubscribed: userId
+                    ? { $in: [userId, "$subscribers.subscriber"] }
+                    : false,
+            },
+        },
+        {
+            $match: {
+                subscribers: {
+                    $elemMatch: { subscriber: channelObjectId }
+                },
+            },
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                bio: 1,
+            },
+        },
+
+    ]);
+
+    if (!followings || !followings.length) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        followings: [],
+                    },
+                    "Sorry! No followings found."
+                )
+            )
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    followings,
+                },
+                "Followings fetched successfully."
+            )
+        )
+})
+
+
 export {
     emailRegistration,
     verifyEmail,
@@ -1029,5 +1281,8 @@ export {
     sendForgotPasswordOTP,
     verifyForgotPasswordOTP,
     forgotPassword,
-    deleteAccount
+    deleteAccount,
+    getAllUsers,
+    getUserFollowers,
+    getUserFollowings
 }

@@ -20,8 +20,12 @@ import {
     sendForgotPasswordOTP,
     verifyForgotPasswordOTP,
     forgotPassword,
-    deleteAccount
+    deleteAccount,
+    getAllUsers,
+    getUserFollowers,
+    getUserFollowings
 } from "../controllers/user.controller.js";
+import { optionalAuth } from "../middlewares/optionalAuth.middleware.js";
 
 const router = Router()
 
@@ -75,7 +79,7 @@ router.route("/update-cover").patch(
     updateUserCoverImage
 )
 
-router.route("/:username").get(verifyJWT, getUserChannelProfile)
+router.route("/:usernameOrId").get(optionalAuth, getUserChannelProfile)
 
 router.route("/v/watch-history").get(verifyJWT, getWatchHistory)
 
@@ -84,5 +88,11 @@ router.route("/delete-user").delete(verifyJWT, deleteAccount)
 router.route("/remove-avatar").delete(verifyJWT, removeUserAvatar)
 
 router.route("/remove-cover").delete(verifyJWT, removeUserCoverImage)
+
+router.route("/search/all").get(optionalAuth, getAllUsers)
+
+router.route("/followers/:channelId").get(optionalAuth, getUserFollowers)
+
+router.route("/followings/:channelId").get(optionalAuth, getUserFollowings)
 
 export default router

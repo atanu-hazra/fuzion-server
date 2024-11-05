@@ -35,7 +35,7 @@ router
     );
 
 router
-    .route("/search")
+    .route("/search/all")
     .get(getAllVideos)
 
 router
@@ -46,7 +46,7 @@ router
 
 router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus);
 
-router.route("/user/:username").get(verifyJWT, getVideosByChannel)
+router.route("/user/:usernameOrId").get(optionalAuth, getVideosByChannel)
 
 
 export default router
