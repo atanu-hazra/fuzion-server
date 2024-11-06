@@ -11,21 +11,19 @@ import {
 
 const router = Router();
 
-router.use(verifyJWT);
-
-router
-    .route("/v/:videoId")
-    .get(getVideoComments)
-    .post(addVideoComment)
+    router
+        .route("/v/:videoId")
+        .get(getVideoComments)
+        .post(verifyJWT, addVideoComment)
 
 router
     .route("/t/:tweetId")
     .get(getTweetComments)
-    .post(addTweetComment)
+    .post(verifyJWT, addTweetComment)
 
 router
     .route("/:commentId")
-    .patch(updateComment)
-    .delete(deleteComment)
+    .patch(verifyJWT, updateComment)
+    .delete(verifyJWT, deleteComment)
 
 export default router

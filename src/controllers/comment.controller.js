@@ -195,6 +195,8 @@ const getVideoComments = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid video ID format.")
     }
 
+    const userId = req.user ? req.user._id : null;
+
     // pipeline to filter data
     const primaryPipeline = [
         {
@@ -220,10 +222,55 @@ const getVideoComments = asyncHandler(async (req, res) => {
             },
         },
         {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "likes",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "likedBy",
+                            foreignField: "_id",
+                            as: "likedBy",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        username: 1,
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likedBy: { $arrayElemAt: ["$likedBy", 0] }
+                        }
+                    },
+                    {
+                        $project: {
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
             $addFields: {
                 owner: {
                     $arrayElemAt: ["$owner", 0]
-                }
+                },
+                likesCount: {
+                    $size: "$likes"
+                },
+                isLikedByUser: userId ? {
+                    $cond: {
+                        if: { $isArray: "$likes.likedBy._id" },
+                        then: { $in: [userId, "$likes.likedBy._id"] },
+                        else: false
+                    }
+                } : false,
             }
         }
     ]
@@ -306,6 +353,8 @@ const getTweetComments = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid tweet ID format.")
     }
 
+    const userId = req.user ? req.user._id : null;
+
     // pipeline to filter data
     const primaryPipeline = [
         {
@@ -331,10 +380,55 @@ const getTweetComments = asyncHandler(async (req, res) => {
             },
         },
         {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "likes",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "likedBy",
+                            foreignField: "_id",
+                            as: "likedBy",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        username: 1,
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likedBy: { $arrayElemAt: ["$likedBy", 0] }
+                        }
+                    },
+                    {
+                        $project: {
+                            likedBy: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
             $addFields: {
                 owner: {
                     $arrayElemAt: ["$owner", 0]
-                }
+                },
+                likesCount: {
+                    $size: "$likes"
+                },
+                isLikedByUser: userId ? {
+                    $cond: {
+                        if: { $isArray: "$likes.likedBy._id" },
+                        then: { $in: [userId, "$likes.likedBy._id"] },
+                        else: false
+                    }
+                } : false,
             }
         }
     ]

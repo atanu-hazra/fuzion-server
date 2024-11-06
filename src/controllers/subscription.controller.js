@@ -8,6 +8,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const toggleSubscription = asyncHandler(async (req, res) => {
     const { channelUsername } = req.params
 
+
+
     if (!channelUsername) {
         throw new ApiError(400, "Channel username is missing!")
     }
@@ -38,6 +40,14 @@ const toggleSubscription = asyncHandler(async (req, res) => {
         responseData = existingSubscription;
         message = "Subscription removed successfully.";
     } else {
+
+        if (req.user._id === channel._id) {
+            return new ApiError(
+                403,
+                "You cannot subscribe to your own channel."
+            );
+        }
+
         const newSubscription = await Subscription.create({
             subscriber: req.user._id,
             channel: channel._id
