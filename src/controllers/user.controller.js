@@ -1057,6 +1057,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
                     $or: [
                         { fullName: { $regex: query, $options: 'i' } },
                         { username: { $regex: query, $options: 'i' } },
+                        { bio: { $regex: query, $options: 'i' } },
                     ]
                 })
             }

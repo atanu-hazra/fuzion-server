@@ -354,10 +354,6 @@ const getUserTweets = asyncHandler(async (req, res) => {
         owner: new mongoose.Types.ObjectId(String(user._id))
     })
 
-    if (!tweets || !totalTweets) {
-        throw new ApiError(400, "Something went wrong while fetching tweets.")
-    }
-
     if (totalTweets === 0) {
         return res
             .status(200)
@@ -370,7 +366,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
                         totalPages: 0,
                         totalTweets: 0
                     },
-                    "This user/channel dont't have any tweets."
+                    "This user dont't have any tweets."
                 )
             )
     }
