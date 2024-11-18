@@ -291,7 +291,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
         video.thumbnail = thumbnailUploadResult.url
     }
-
+    
     await video.save({ validateBeforeSave: false })
 
     return res

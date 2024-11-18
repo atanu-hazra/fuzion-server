@@ -280,12 +280,72 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
 
     let usersPlaylist;
 
-    // if userId and req.user._id is same give all the playlists, otherwise only public playlists
-    if (userObjectId.equals(req.user._id)) {
+    const reqUserId = req.user?._id || null 
+
+    // if userId and reqUserId is same give all the playlists, otherwise only public playlists
+    if (userObjectId.equals(reqUserId)) {
         usersPlaylist = await Playlist.aggregate([
             {
                 $match: {
                     owner: userObjectId
+                }
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "owner",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullName: 1,
+                                username: 1,
+                                avatar: 1
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "videos",
+                    foreignField: "_id",
+                    as: "videos",
+                    pipeline: [
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "owner",
+                                foreignField: "_id",
+                                as: "owner",
+                                pipeline: [
+                                    {
+                                        $project: {
+                                            fullName: 1,
+                                            username: 1,
+                                            avatar: 1
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            $addFields: {
+                                owner: {
+                                    $arrayElemAt: ["$owner", 0]
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields: {
+                    owner: {
+                        $arrayElemAt: ["$owner", 0]
+                    }
                 }
             }
         ])
@@ -295,6 +355,65 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
                 $match: {
                     owner: userObjectId,
                     isPublic: true
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "owner",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullName: 1,
+                                username: 1,
+                                avatar: 1
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "videos",
+                    foreignField: "_id",
+                    as: "videos",
+                    pipeline: [
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "owner",
+                                foreignField: "_id",
+                                as: "owner",
+                                pipeline: [
+                                    {
+                                        $project: {
+                                            fullName: 1,
+                                            username: 1,
+                                            avatar: 1
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            $addFields: {
+                                owner: {
+                                    $arrayElemAt: ["$owner", 0]
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields: {
+                    owner: {
+                        $arrayElemAt: ["$owner", 0]
+                    }
                 }
             }
         ])
@@ -328,6 +447,8 @@ const getPlaylistById = asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(playlistId)) {
         throw new ApiError(400, "Invalid playlist Id format.")
     }
+
+    const reqUserId = req.user?._id || null
 
     let playlist;
 
@@ -419,7 +540,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 )
             )
     } else {
-        if (!playlist[0].owner.equals(req.user._id)) {
+        if (String(playlist[0].owner._id) !== String(reqUserId))  {
             throw new ApiError(403, "Sorry, you don't have the authority to access this playlist.")
         }
 
