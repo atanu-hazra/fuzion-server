@@ -418,8 +418,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword, confirmNewPassword } = req.body
 
-    // before run changeCurrentPassword we need to go through verifyJWT middleware to ensure the user is logged in or not, as in this middleware we are setting req.user = user, we can access the req.user from here also as the verifyJWT middleware is alreday ran
-
     if (newPassword !== confirmNewPassword) {
         throw new ApiError(400, "New password and confirmation password do not match.");
     }
@@ -736,7 +734,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                 from: "videos",
                 localField: "watchHistory",
                 foreignField: "_id",
-                // When the localField is an array, MongoDB will match each element of the array with the foreignField of the other collection, here watchHistory is an array
                 as: "watchHistory",
                 pipeline: [
                     {
@@ -756,8 +753,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                             ]
                         },
                     },
-                    // here owner will be structured like owner : [{owner data}] - as its creating documents
-                    // to make frontend dev life easy, taking out the first object of the owner[], right here and overwriting owner with it.
                     {
                         $addFields: {
                             owner: {

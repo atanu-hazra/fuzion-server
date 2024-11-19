@@ -59,7 +59,8 @@ const toggleSaveTweet = asyncHandler(async (req, res) => {
 const getSavedTweets = asyncHandler(async (req, res) => {
 
     let savedTweets;
-
+    const userId = req.user ? req.user._id : null;
+    
     try {
         savedTweets = await SavedTweet.aggregate([
             {
@@ -92,10 +93,112 @@ const getSavedTweets = asyncHandler(async (req, res) => {
                             }
                         },
                         {
-                            $addFields: {
-                                owner: { $arrayElemAt: ["$owner", 0] }
+                            $lookup: {
+                                from: "likes",
+                                localField: "_id",
+                                foreignField: "tweet",
+                                as: "likes",
+                                pipeline: [
+                                    {
+                                        $lookup: {
+                                            from: "users",
+                                            localField: "likedBy",
+                                            foreignField: "_id",
+                                            as: "likedBy",
+                                            pipeline: [
+                                                {
+                                                    $project: {
+                                                        fullName: 1,
+                                                        username: 1,
+                                                        avatar: 1
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        $addFields: {
+                                            likedBy: { $arrayElemAt: ["$likedBy", 0] }
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            likedBy: 1
+                                        }
+                                    }
+                                ]
                             }
-                        }
+                        },
+                        {
+                            $lookup: {
+                                from: "savedtweets",
+                                let: { tweetId: "$_id", userId: userId },
+                                pipeline: [
+                                    { $match: { $expr: { $and: [{ $in: ["$$tweetId", "$tweets"] }, { $eq: ["$savedBy", "$$userId"] }] } } },
+                                    { $project: { _id: 1 } }
+                                ],
+                                as: "savedByUser"
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: "comments",
+                                localField: "_id",
+                                foreignField: "tweet",
+                                as: "comments",
+                                pipeline: [
+                                    {
+                                        $lookup: {
+                                            from: "users",
+                                            localField: "owner",
+                                            foreignField: "_id",
+                                            as: "owner",
+                                            pipeline: [
+                                                {
+                                                    $project: {
+                                                        fullName: 1,
+                                                        username: 1,
+                                                        avatar: 1
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        $addFields: {
+                                            owner: { $arrayElemAt: ["$owner", 0] }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            $addFields: {
+                                owner: {
+                                    $arrayElemAt: ["$owner", 0]
+                                },
+                                likesCount: {
+                                    $size: "$likes"
+                                },
+                                commentsCount: {
+                                    $size: "$comments"
+                                },
+                                isLikedByUser: userId ? {
+                                    $cond: {
+                                        if: { $isArray: "$likes.likedBy._id" },
+                                        then: { $in: [userId, "$likes.likedBy._id"] },
+                                        else: false
+                                    }
+                                } : false,
+                                isSavedByUser: {
+                                    $cond: {
+                                        if: { $isArray: "$savedByUser" },
+                                        then: { $gt: [{ $size: "$savedByUser" }, 0] },
+                                        else: false
+                                    }
+                                }
+                            }
+                        },
                     ]
                 }
             }
