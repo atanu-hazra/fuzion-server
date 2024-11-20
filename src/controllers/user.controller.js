@@ -815,21 +815,17 @@ const sendForgotPasswordOTP = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Error while sending forgot password email: " + error.message);
     }
 
-    const encryptedEmail = encrypt(user.email)
-
-    const cookiesOptions = {
-        httpOnly: true,
-        secure: false,
-        maxAge: 15 * 60 * 1000,
-    }
+    const token = generateToken(user.email);
 
     return res
         .status(200)
-        .cookie("encryptedEmail", encryptedEmail, cookiesOptions)
         .json(
             new ApiResponse(
                 200,
-                null,
+                {
+                    email: user.email,
+                    token
+                },
                 "Forgot password OTP sent successfully."
             )
         )
@@ -839,16 +835,21 @@ const sendForgotPasswordOTP = asyncHandler(async (req, res) => {
 const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
 
     const { forgotPasswordOTP } = req.body
-    const encryptedEmail = req.cookies.encryptedEmail
 
-    if (!encryptedEmail) {
-        throw new ApiError(400, "Session expired.")
+    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    if (!incomingToken) {
+        throw new ApiError(400, 'Token is required');
     }
-
-    const email = decrypt(encryptedEmail.encryptedData, encryptedEmail.iv)
+    console.log({ incomingToken })
+    // Verify JWT and extract email
+    const decoded = verifyToken(incomingToken);
+    console.log(1)
+    console.log("decoded", decoded)
+    const email = decoded.data;
+    console.log(email)
 
     if (!email) {
-        throw new ApiError(400, "Something went wrong while decryption.")
+        throw new ApiError(400, "Something went wrong while decoding the email.")
     }
 
     const user = await User.findOne({ email })
@@ -875,21 +876,14 @@ const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Error while saving user: " + error.message);
     }
 
-    const verifiedEmail = encrypt(email)
-
-    const cookiesOptions = {
-        httpOnly: true,
-        secure: false,
-        maxAge: 20 * 60 * 1000,
-    }
+    const token = generateToken(user.email);
 
     return res
         .status(200)
-        .cookie("verifiedEmail", verifiedEmail, cookiesOptions)
         .json(
             new ApiResponse(
                 200,
-                null,
+                { token },
                 "Forgot password OTP verified successfully."
             )
         )
@@ -899,18 +893,20 @@ const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
 const forgotPassword = asyncHandler(async (req, res) => {
 
     const { newPassword } = req.body
-    const verifiedEmail = req.cookies.verifiedEmail
 
-    if (!verifiedEmail) {
-        throw new ApiError(400, "Sesssion expired.")
+    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    if (!incomingToken) {
+        throw new ApiError(400, 'Token is required');
     }
 
-    const email = decrypt(verifiedEmail.encryptedData, verifiedEmail.iv)
+    // Verify JWT and extract email
+    const decoded = verifyToken(incomingToken);
+    console.log("decoded", decoded)
+    const email = decoded.data;
 
     if (!email) {
-        throw new ApiError(400, "Something went wrong while decryption.")
+        throw new ApiError(400, "Something went wrong while decoding the email.")
     }
-
     if (!newPassword || !newPassword.trim()) {
         throw new ApiError(400, "Password is required.")
     }
