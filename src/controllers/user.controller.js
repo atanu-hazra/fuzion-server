@@ -485,8 +485,6 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 
     // Check if the username is already in use by another user
-    console.log(user.username, username)
-
     if (username && user.username !== username) {
 
         const isUsernameExist = await User.findOne({ username })
@@ -510,6 +508,130 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
                 200,
                 user,
                 "Account updated successfully."
+            )
+        )
+})
+
+const updateEmail = asyncHandler(async (req, res) => {
+    const { newEmail, password } = req.body
+
+    if (!String(newEmail).trim() || !String(password).trim()) {
+        throw new ApiError(400, "Email and password is required.")
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(newEmail)) {
+        throw new ApiError(400, "Invalid email address format.");
+    }
+
+    const existedUser = await User.findOne({ email: newEmail })
+
+    if (existedUser) {
+        throw new ApiError(409, "This email is already linked to an user.")
+    }
+
+    const user = await User.findById(req.user._id)
+
+    const isPasswordValid = await user.isPasswordCorrect(password)
+
+    if (!isPasswordValid) {
+        throw new ApiError(400, "Incorrect password.")
+    }
+
+    if (newEmail === user.email) {
+        throw new ApiError(400, "The new email cannot be the same as the current email.");
+    }
+
+    const updateEmailOTP = Math.floor(Math.random() * 900000) + 100000;
+
+    user.updateEmailOTP = updateEmailOTP
+
+    // console.log("forgotPasswordOTP: ", forgotPasswordOTP)
+
+    const otpExpiry = new Date(Date.now() + 20 * 60 * 1000);
+    user.updateEmailOTPExpiry = otpExpiry
+
+    try {
+        await user.save({ validateBeforeSave: false });
+    } catch (error) {
+        throw new ApiError(500, "Error while saving user : " + error.message);
+    }
+
+    try {
+        await sendVerificationMail(newEmail, updateEmailOTP);
+    } catch (error) {
+        throw new ApiError(500, "Error while sending mail verification OTP: " + error.message);
+    }
+
+    const updateEmailToken = generateToken(newEmail);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { updateEmailToken },
+                "Verification OTP sent successfully to new email."
+            )
+        )
+})
+
+const verifyUpdateEmailOTP = asyncHandler(async (req, res) => {
+
+    const { updateEmailOTP } = req.body
+    
+    const updateEmailToken = req.headers.updateemailtoken
+    if (!updateEmailToken) {
+        throw new ApiError(400, 'Token is required');
+    }
+    const decoded = verifyToken(updateEmailToken);
+    const newEmail = decoded.data;
+    console.log(newEmail)
+
+    if (!newEmail) {
+        throw new ApiError(400, "Something went wrong while decoding the email.")
+    }
+
+    const user = await User.findById(req.user._id)
+
+    if (!user) {
+        throw new ApiError(400, "Unauthorized request.")
+    }
+
+    if (user.updateEmailOTP !== updateEmailOTP) {
+        throw new ApiError(400, "Invalid OTP.")
+    }
+
+    if (user.updateEmailOTPExpiry < Date.now()) {
+        throw new ApiError(400, "OTP has expired.")
+    }
+
+    try {
+        user.email = newEmail;
+        user.updateEmailOTP = null;
+        user.updateEmailOTPExpiry = null;
+        await user.save({ validateBeforeSave: false });
+    } catch (error) {
+        user.updateEmailOTP = null;
+        user.updateEmailOTPExpiry = null;
+        await user.save({ validateBeforeSave: false });
+        throw new ApiError(500, "Error while saving user : " + error.message);
+    }
+
+    try {
+        await user.save({ validateBeforeSave: false });
+    } catch (error) {
+        throw new ApiError(500, "Error while saving user : " + error.message);
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { user },
+                "Email updated successfully."
             )
         )
 })
@@ -1083,6 +1205,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
 
 })
 
+
 const getUserFollowers = asyncHandler(async (req, res) => {
 
     const { channelId } = req.params
@@ -1171,6 +1294,7 @@ const getUserFollowers = asyncHandler(async (req, res) => {
             )
         )
 })
+
 
 const getUserFollowings = asyncHandler(async (req, res) => {
 
@@ -1276,5 +1400,7 @@ export {
     deleteAccount,
     getAllUsers,
     getUserFollowers,
-    getUserFollowings
+    getUserFollowings,
+    updateEmail,
+    verifyUpdateEmailOTP
 }

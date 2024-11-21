@@ -23,7 +23,9 @@ import {
     deleteAccount,
     getAllUsers,
     getUserFollowers,
-    getUserFollowings
+    getUserFollowings,
+    updateEmail,
+    verifyUpdateEmailOTP
 } from "../controllers/user.controller.js";
 import { optionalAuth } from "../middlewares/optionalAuth.middleware.js";
 
@@ -66,6 +68,10 @@ router.route("/change-password").post(verifyJWT, changeCurrentPassword)
 router.route("/current-user").get(verifyJWT, getCurrentUser)
 
 router.route("/update-profile").patch(verifyJWT, updateAccountDetails)
+
+router.route("/update-email").post(verifyJWT, updateEmail)
+
+router.route("/verify-update-email").post(verifyJWT, verifyUpdateEmailOTP)
 
 router.route("/update-avatar").patch(
     verifyJWT,

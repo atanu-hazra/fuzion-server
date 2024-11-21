@@ -54,8 +54,13 @@ const userSchema = new Schema(
         },
         forgotPasswordOtpExpiry: {
             type: Date
-        }
-
+        },
+        updateEmailOTP: {
+            type: Number
+        },
+        updateEmailOTPExpiry: {
+            type: Date
+        },
     },
     { timestamps: true }
 )

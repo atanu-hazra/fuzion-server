@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendVerificationMail = async (email, OTP) => {
+    console.log(OTP)
     try {
         await resend.emails.send({
             from: process.env.RESEND_MAIL_SENDER,
@@ -26,6 +27,7 @@ const sendVerificationMail = async (email, OTP) => {
 
 
 const sendForgotPasswordMail = async (email, OTP, username) => {
+    console.log(OTP)
     try {
         await resend.emails.send({
             from: process.env.RESEND_MAIL_SENDER,
