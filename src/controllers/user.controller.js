@@ -97,8 +97,15 @@ const emailRegistration = asyncHandler(async (req, res) => {
 
     const token = generateToken(email);
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 20 * 60 * 1000,
+    }
+
     return res
         .status(200)
+        .cookie("emailToken", token, cookiesOptions)
         .json(
             new ApiResponse(
                 200,
@@ -114,7 +121,8 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
     const { verificationOTP } = req.body;
 
-    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    const incomingToken = req.cookies.emailToken || req.headers.authorization?.split(' ')[1]
+
     if (!incomingToken) {
         throw new ApiError(400, 'Token is required');
     }
@@ -142,8 +150,16 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
     const token = generateToken(email);
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 20 * 60 * 1000,
+    }
+
     return res
         .status(200)
+        .cookie("verifiedEmailToken", token, cookiesOptions)
+        .clearCookie("emailToken")
         .json(
             new ApiResponse(
                 200,
@@ -161,7 +177,8 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
 const registerUser = asyncHandler(async (req, res) => {
 
-    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    const incomingToken = req.cookies.verifiedEmailToken || req.headers.authorization?.split(' ')[1]
+
     if (!incomingToken) {
         throw new ApiError(400, 'Token is required');
     }
@@ -174,12 +191,12 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Something went wrong while decoding the email.")
     }
 
-    // 1. Getting user details
+    // Getting user details
 
     const { fullName, username, password, bio = "Welcome to my profile! Excited to connect and share with everyone." } = req.body
 
 
-    // 2. Basic Validation
+    // Basic Validation
 
     if (
         [fullName, username, password].some((field) => field?.trim() === "")
@@ -194,7 +211,7 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid username: only letters, numbers, hyphens, and underscores are allowed.")
     }
 
-    // 3. checking for existing user
+    // checking for existing user
 
     const existedUserWithEmail = await User.findOne({ email })
 
@@ -208,34 +225,7 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "User with username already exists")
     }
 
-    // // 4. check for images and check for avatars
-
-    // let avatarLocalPath;
-    // if (req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0) {
-    //     avatarLocalPath = req.files.avatar[0].path
-    // }
-
-    // let coverImageLocalPath;
-    // if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-    //     coverImageLocalPath = req.files.coverImage[0].path
-    // }
-
-    // // 5. upload them to cloudinary, check if uploaded or not
-
-    // const avatarUploadResult = await uploadOnCloudinary(avatarLocalPath, "image")
-    // const coverImageUploadResult = await uploadOnCloudinary(coverImageLocalPath, "image")
-
-    // // checking if avatar is uploaded successfully
-    // if (!avatarUploadResult) {
-    //     throw new ApiError(400, "Avatar upload failed!");
-    // }
-
-    // // this will check the cover image upload only if the user uploaded a cover image 
-    // if (coverImageLocalPath && !coverImageUploadResult) {
-    //     throw new ApiError(400, "Cover image upload failed!");
-    // }
-
-    // 6. create user object - create entry in db
+    // create user object - create entry in db
 
     const user = await User.create({
         fullName,
@@ -247,7 +237,7 @@ const registerUser = asyncHandler(async (req, res) => {
         username: username.toLowerCase()
     })
 
-    // 7. checking if user is created and removing password and refreshToken
+    // checking if user is created and removing password and refreshToken
 
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
@@ -257,11 +247,14 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while registering the user!")
     }
 
-    // 8. returning response
+    // returning response
 
-    return res.status(201).json(
-        new ApiResponse(200, createdUser, "User registered successfully!")
-    )
+    return res
+        .status(201)
+        .clearCookie("verifiedEmailToken")
+        .json(
+            new ApiResponse(200, createdUser, "User registered successfully!")
+        )
 })
 
 
@@ -314,7 +307,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const cookiesOptions = {
         httpOnly: true,
-        secure: false
+        secure: true
     }
 
     return res
@@ -351,7 +344,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const cookiesOptions = {
         httpOnly: true,
-        secure: false
+        secure: true
     }
 
     return res
@@ -391,7 +384,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         // console.log('accesss token refershed!')
         const cookiesOptions = {
             httpOnly: true,
-            secure: false
+            secure: true
         }
 
         return res
@@ -566,8 +559,15 @@ const updateEmail = asyncHandler(async (req, res) => {
 
     const updateEmailToken = generateToken(newEmail);
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 20 * 60 * 1000,
+    }
+
     return res
         .status(200)
+        .cookie("updateEmailToken", updateEmailToken, cookiesOptions)
         .json(
             new ApiResponse(
                 200,
@@ -580,8 +580,8 @@ const updateEmail = asyncHandler(async (req, res) => {
 const verifyUpdateEmailOTP = asyncHandler(async (req, res) => {
 
     const { updateEmailOTP } = req.body
-    
-    const updateEmailToken = req.headers.updateemailtoken
+
+    const updateEmailToken = req.cookies.updateEmailToken || req.headers.updateemailtoken
     if (!updateEmailToken) {
         throw new ApiError(400, 'Token is required');
     }
@@ -625,8 +625,14 @@ const verifyUpdateEmailOTP = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Error while saving user : " + error.message);
     }
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true
+    }
+
     return res
         .status(200)
+        .clearCookie("updateEmailToken", cookiesOptions)
         .json(
             new ApiResponse(
                 200,
@@ -939,8 +945,15 @@ const sendForgotPasswordOTP = asyncHandler(async (req, res) => {
 
     const token = generateToken(user.email);
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 20 * 60 * 1000,
+    }
+
     return res
         .status(200)
+        .cookie("forgotPassToken", token, cookiesOptions)
         .json(
             new ApiResponse(
                 200,
@@ -958,7 +971,8 @@ const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
 
     const { forgotPasswordOTP } = req.body
 
-    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    const incomingToken = req.cookies.forgotPassToken || req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+
     if (!incomingToken) {
         throw new ApiError(400, 'Token is required');
     }
@@ -1000,8 +1014,16 @@ const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
 
     const token = generateToken(user.email);
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 20 * 60 * 1000,
+    }
+
     return res
         .status(200)
+        .cookie("verifiedToken", token, cookiesOptions)
+        .clearCookie("forgotPassToken")
         .json(
             new ApiResponse(
                 200,
@@ -1016,7 +1038,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
     const { newPassword } = req.body
 
-    const incomingToken = req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
+    const incomingToken = req.cookies.verifiedToken || req.headers.authorization?.split(' ')[1]; // Expecting 'Bearer <token>'
     if (!incomingToken) {
         throw new ApiError(400, 'Token is required');
     }
@@ -1047,8 +1069,14 @@ const forgotPassword = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Error while saving user: " + error.message);
     }
 
+    const cookiesOptions = {
+        httpOnly: true,
+        secure: true
+    }
+
     return res
         .status(200)
+        .clearCookie("verifiedToken", cookiesOptions)
         .json(
             new ApiResponse(
                 200,
