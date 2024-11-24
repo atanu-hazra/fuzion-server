@@ -281,13 +281,13 @@ const getVideoComments = asyncHandler(async (req, res) => {
             $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 }
         },
 
-        {
-            $skip: (page - 1) * limit
-        },
+        // {
+        //     $skip: (page - 1) * limit
+        // },
 
-        {
-            $limit: parseInt(limit)
-        }
+        // {
+        //     $limit: parseInt(limit)
+        // }
     ]
 
     let comments, totalComments;
@@ -439,13 +439,13 @@ const getTweetComments = asyncHandler(async (req, res) => {
             $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 }
         },
 
-        {
-            $skip: (page - 1) * limit
-        },
+        // {
+        //     $skip: (page - 1) * limit
+        // },
 
-        {
-            $limit: parseInt(limit)
-        }
+        // {
+        //     $limit: parseInt(limit)
+        // }
     ]
 
     let comments, totalComments;

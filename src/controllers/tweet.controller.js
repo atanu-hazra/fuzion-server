@@ -154,7 +154,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
 const getUserTweets = asyncHandler(async (req, res) => {
 
     const { usernameOrId } = req.params
-    const { page = 1, limit = 20, sortBy = "createdAt", sortType = "desc" } = req.query
+    const { page = 1, limit = 30, sortBy = "createdAt", sortType = "desc" } = req.query
 
     
     const isObjectId = mongoose.Types.ObjectId.isValid(usernameOrId);
@@ -340,13 +340,13 @@ const getUserTweets = asyncHandler(async (req, res) => {
             $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 }
         },
 
-        {
-            $skip: (page - 1) * limit
-        },
+        // {
+        //     $skip: (page - 1) * limit
+        // },
 
-        {
-            $limit: parseInt(limit)
-        }
+        // {
+        //     $limit: parseInt(limit)
+        // }
     ])
 
     // fetching the total number of tweets made by the user
@@ -538,13 +538,13 @@ const getAllTweets = asyncHandler(async (req, res) => {
             $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 }
         },
 
-        {
-            $skip: (page - 1) * limit
-        },
+        // {
+        //     $skip: (page - 1) * limit
+        // },
 
-        {
-            $limit: parseInt(limit)
-        }
+        // {
+        //     $limit: parseInt(limit)
+        // }
     ]
 
     // Fetch tweets with the combined pipeline

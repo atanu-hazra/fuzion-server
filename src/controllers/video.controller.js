@@ -392,7 +392,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 const getAllVideos = asyncHandler(async (req, res) => {
 
-    const { page = 1, limit = 10, query, sortBy = "views", sortType = "desc" } = req.query
+    const { page = 1, limit = 20, query, sortBy = "views", sortType = "desc" } = req.query
 
     const pipeline = [];
 
@@ -450,16 +450,16 @@ const getAllVideos = asyncHandler(async (req, res) => {
     };
     pipeline.push(sortStage);
 
-    // Pagination stage
-    const skipStage = {
-        $skip: (page - 1) * limit
-    };
-    pipeline.push(skipStage);
+    // // Pagination stage
+    // const skipStage = {
+    //     $skip: (page - 1) * limit
+    // };
+    // pipeline.push(skipStage);
 
-    const limitStage = {
-        $limit: parseInt(limit)
-    };
-    pipeline.push(limitStage);
+    // const limitStage = {
+    //     $limit: parseInt(limit)
+    // };
+    // pipeline.push(limitStage);
 
     // Execute the aggregation
     const videos = await Video.aggregate(pipeline);
@@ -544,9 +544,9 @@ const getVideosByChannel = asyncHandler(async (req, res) => {
 
         { $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 } },
 
-        { $skip: (page - 1) * limit },
+        // { $skip: (page - 1) * limit },
 
-        { $limit: parseInt(limit) },
+        // { $limit: parseInt(limit) },
 
         {
             $lookup: {
