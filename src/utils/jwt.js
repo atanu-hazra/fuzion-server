@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken'; // Import JWT library
 import { ApiError } from '../utils/ApiError.js';
 
 const secretKey = process.env.JWT_SECRET // Use a secret key for signing the JWTs
-console.log({ secretKey })
 
 // function to generate JWT
 function generateToken(data) {
