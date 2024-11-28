@@ -25,12 +25,20 @@ const uploadOnCloudinary = async (localFilePath, resourceType = 'auto') => {
 }
 
 const deleteFromCloudinary = async (cloudinaryUrl) => {
+
+    if (!cloudinaryUrl.includes('cloudinary.com')) {
+        console.log('Invalid Cloudinary URL.');
+        return null;
+    }
+
     const arr = cloudinaryUrl.split('/')
     const publicId = arr[arr.length - 1].split('.')[0];
     
-    console.log(publicId)
+    // console.log(publicId)
+    
+    if (!publicId) return null;
+    
     try {
-        if (!publicId) return null;
         const deleteResult = await cloudinary.uploader.destroy(publicId);
         console.log("File has been deleted successfully from Cloudinary.", deleteResult);
         return deleteResult;
