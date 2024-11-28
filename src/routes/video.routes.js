@@ -42,7 +42,12 @@ router
     .route("/:videoId")
     .get(optionalAuth, getVideoById)
     .delete(verifyJWT, deleteVideo)
-    .patch(verifyJWT, upload.single("thumbnail"), updateVideo);
+    .patch(verifyJWT, upload.fields([
+        {
+            name: "thumbnail",
+            maxCount: 1,
+        },
+    ]), updateVideo);
 
 router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus);
 
