@@ -3,7 +3,7 @@ import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
 
 
@@ -284,6 +284,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     if (thumbnailLocalPath) {
         const thumbnailUploadResult = await uploadOnCloudinary(thumbnailLocalPath, "image");
+        await deleteFromCloudinary(video.thumbnail)
 
         if (!thumbnailUploadResult) {
             throw new ApiError(400, "Thumbnail upload failed!")
@@ -336,6 +337,10 @@ const deleteVideo = asyncHandler(async (req, res) => {
     if (!deleteResponse) {
         throw new ApiError(400, "Something went wrong while deleting the video.")
     }
+    
+    // deleting files from cloudinary
+    await deleteFromCloudinary(video.thumbnail)
+    await deleteFromCloudinary(video.videoFile)
 
     return res
         .status(200)

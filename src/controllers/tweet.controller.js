@@ -139,6 +139,12 @@ const deleteTweet = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Something went wrong while deleting the tweet.")
     }
 
+    if (tweet.images && tweet.images.length > 0) {
+        tweet.images.map( async (imgUrl) => {
+            await deleteFromCloudinary(imgUrl)
+        })
+    }
+
     return res
         .status(200)
         .json(

@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Registration } from "../models/registration.model.js";
 import { sendVerificationMail, sendForgotPasswordMail } from "../utils/sendEmail.js";
@@ -116,7 +116,6 @@ const emailRegistration = asyncHandler(async (req, res) => {
 
 })
 
-
 const verifyEmail = asyncHandler(async (req, res) => {
 
     const { verificationOTP } = req.body;
@@ -173,7 +172,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
         )
 
 })
-
 
 const registerUser = asyncHandler(async (req, res) => {
 
@@ -257,7 +255,6 @@ const registerUser = asyncHandler(async (req, res) => {
         )
 })
 
-
 const loginUser = asyncHandler(async (req, res) => {
 
     // 1. getting user details
@@ -328,7 +325,6 @@ const loginUser = asyncHandler(async (req, res) => {
 
 })
 
-
 const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
@@ -355,7 +351,6 @@ const logoutUser = asyncHandler(async (req, res) => {
             new ApiResponse(200, {}, "User logged out successfully!")
         )
 })
-
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
     try {
@@ -407,7 +402,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 })
 
-
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword, confirmNewPassword } = req.body
 
@@ -438,7 +432,6 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 })
 
-
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
@@ -450,7 +443,6 @@ const getCurrentUser = asyncHandler(async (req, res) => {
             )
         )
 })
-
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
     console.log(req.body)
@@ -642,7 +634,6 @@ const verifyUpdateEmailOTP = asyncHandler(async (req, res) => {
         )
 })
 
-
 const updateUserAvatar = asyncHandler(async (req, res) => {
     const avatarLocalPath = req.file?.path
 
@@ -656,17 +647,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading an avatar.")
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                avatar: avatar.url
-            }
-        },
-        {
-            new: true
-        }
-    ).select("-password -refreshToken")
+    const user = await User.findById(req.user._id).select("-password -refreshToken")
+
+    if (user.avatar.trim() !== '') deleteFromCloudinary(user.avatar);
+
+    user.avatar = avatar.url
+
+    await user.save({ validateBeforeSave: false })
 
     return res
         .status(200)
@@ -679,7 +666,6 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         )
 
 })
-
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
     const coverImageLocalPath = req.file?.path
@@ -694,17 +680,13 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading a cover image.")
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                coverImage: coverImage.url
-            }
-        },
-        {
-            new: true
-        }
-    ).select("-password -refreshToken")
+    const user = await User.findById(req.user._id).select("-password -refreshToken")
+
+    if (user.coverImage.trim() !== '') deleteFromCloudinary(user.coverImage);
+
+    user.coverImage = coverImage.url
+
+    await user.save({ validateBeforeSave: false })
 
     return res
         .status(200)
@@ -719,17 +701,14 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 })
 
 const removeUserAvatar = asyncHandler(async (req, res) => {
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                avatar: ""
-            }
-        },
-        {
-            new: true
-        }
-    ).select("-password -refreshToken")
+
+    const user = await User.findById(req.user._id).select("-password -refreshToken")
+
+    if (user.avatar.trim() !== '') deleteFromCloudinary(user.avatar);
+
+    user.avatar = ''
+
+    await user.save({ validateBeforeSave: false })
 
     return res
         .status(200)
@@ -743,17 +722,14 @@ const removeUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const removeUserCoverImage = asyncHandler(async (req, res) => {
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                coverImage: ""
-            }
-        },
-        {
-            new: true
-        }
-    ).select("-password -refreshToken")
+
+    const user = await User.findById(req.user._id).select("-password -refreshToken")
+
+    if (user.coverImage.trim() !== '') deleteFromCloudinary(user.coverImage);
+
+    user.coverImage = ''
+
+    await user.save({ validateBeforeSave: false })
 
     return res
         .status(200)
@@ -1148,6 +1124,8 @@ const deleteAccount = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while deleting the user.")
     }
 
+    if (user.avatar.trim() !== '') await deleteFromCloudinary(user.avatar);
+    if (user.coverImage.trim() !== '') await deleteFromCloudinary(user.coverImage)
 
     return res
         .status(200)
