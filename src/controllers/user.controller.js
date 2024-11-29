@@ -649,8 +649,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.user._id).select("-password -refreshToken")
 
-    if (user.avatar.trim() !== '') deleteFromCloudinary(user.avatar);
-
+    if (user.avatar.trim() !== '') {
+        try {
+            await deleteFromCloudinary(user.avatar);
+        } catch (error) { }
+    }
     user.avatar = avatar.url
 
     await user.save({ validateBeforeSave: false })
@@ -682,7 +685,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.user._id).select("-password -refreshToken")
 
-    if (user.coverImage.trim() !== '') deleteFromCloudinary(user.coverImage);
+    if (user.coverImage.trim() !== '') {
+        try {
+            await deleteFromCloudinary(user.coverImage);
+        } catch (error) { }
+    }
 
     user.coverImage = coverImage.url
 
@@ -704,7 +711,9 @@ const removeUserAvatar = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.user._id).select("-password -refreshToken")
 
-    if (user.avatar.trim() !== '') deleteFromCloudinary(user.avatar);
+    if (user.avatar.trim() !== '') try {
+        await deleteFromCloudinary(user.avatar);
+    } catch (error) { }
 
     user.avatar = ''
 
@@ -725,8 +734,11 @@ const removeUserCoverImage = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.user._id).select("-password -refreshToken")
 
-    if (user.coverImage.trim() !== '') deleteFromCloudinary(user.coverImage);
-
+    if (user.coverImage.trim() !== '') {
+        try {
+            await deleteFromCloudinary(user.coverImage);
+        } catch (error) { }
+    }
     user.coverImage = ''
 
     await user.save({ validateBeforeSave: false })
@@ -1124,8 +1136,17 @@ const deleteAccount = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while deleting the user.")
     }
 
-    if (user.avatar.trim() !== '') await deleteFromCloudinary(user.avatar);
-    if (user.coverImage.trim() !== '') await deleteFromCloudinary(user.coverImage)
+    if (user.avatar.trim() !== '') {
+        try {
+            await deleteFromCloudinary(user.avatar);
+        } catch (error) { }
+    }
+
+    if (user.coverImage.trim() !== '') {
+        try {
+            await deleteFromCloudinary(user.coverImage)
+        } catch (error) { }
+    }
 
     return res
         .status(200)
@@ -1140,11 +1161,11 @@ const deleteAccount = asyncHandler(async (req, res) => {
 
 
 const getAllUsers = asyncHandler(async (req, res) => {
-    const { query } = req.query
+    const { query, page = 1, limit = 30 } = req.query
 
     const userId = req.user?._id || null
 
-    const users = await User.aggregate([
+    const primaryPipeline = [
         {
             $lookup: {
                 from: "subscriptions",
@@ -1180,8 +1201,36 @@ const getAllUsers = asyncHandler(async (req, res) => {
                     ]
                 })
             }
+        },
+    ]
+
+    const secondaryPipeline = [
+        {
+            $skip: (page - 1) * limit
+        },
+
+        {
+            $limit: parseInt(limit)
         }
+    ]
+
+    const users = await User.aggregate([
+        ...primaryPipeline,
+        ...secondaryPipeline
     ])
+
+
+    // Count total tweets matching the filters
+    const totalUsers = await User.aggregate([
+        ...primaryPipeline,
+        { $count: "totalUsersCount" }
+    ])
+
+    if (!users || !totalUsers) {
+        throw new ApiError(400, "Something went wrong while fetching users!")
+    }
+
+    const totalUsersCount = totalUsers.length > 0 ? totalUsers[0].totalUsersCount : 0;
 
     if (!users || !users.length) {
         return res
@@ -1191,6 +1240,9 @@ const getAllUsers = asyncHandler(async (req, res) => {
                     200,
                     {
                         users: [],
+                        currentPage: parseInt(page),
+                        totalPages: 0,
+                        totalUsers: 0
                     },
                     "Sorry! No users found."
                 )
@@ -1204,6 +1256,9 @@ const getAllUsers = asyncHandler(async (req, res) => {
                 200,
                 {
                     users,
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(totalUsersCount / limit),
+                    totalUsers: totalUsersCount
                 },
                 "Users fetched successfully."
             )

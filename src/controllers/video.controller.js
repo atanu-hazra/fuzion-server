@@ -284,7 +284,9 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     if (thumbnailLocalPath) {
         const thumbnailUploadResult = await uploadOnCloudinary(thumbnailLocalPath, "image");
-        await deleteFromCloudinary(video.thumbnail)
+        try {
+            await deleteFromCloudinary(video.thumbnail)
+        } catch (error) {}
 
         if (!thumbnailUploadResult) {
             throw new ApiError(400, "Thumbnail upload failed!")
@@ -339,8 +341,10 @@ const deleteVideo = asyncHandler(async (req, res) => {
     }
     
     // deleting files from cloudinary
-    await deleteFromCloudinary(video.thumbnail)
-    await deleteFromCloudinary(video.videoFile)
+    try {
+        await deleteFromCloudinary(video.thumbnail)
+        await deleteFromCloudinary(video.videoFile)
+    } catch (error) {}
 
     return res
         .status(200)
@@ -397,7 +401,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 const getAllVideos = asyncHandler(async (req, res) => {
 
-    const { page = 1, limit = 20, query, sortBy = "views", sortType = "desc" } = req.query
+    const { page = 1, limit = 30, query = '', sortBy = "views", sortType = "desc" } = req.query
 
     const pipeline = [];
 
@@ -455,16 +459,16 @@ const getAllVideos = asyncHandler(async (req, res) => {
     };
     pipeline.push(sortStage);
 
-    // // Pagination stage
-    // const skipStage = {
-    //     $skip: (page - 1) * limit
-    // };
-    // pipeline.push(skipStage);
+    // Pagination stage
+    const skipStage = {
+        $skip: (page - 1) * limit
+    };
+    pipeline.push(skipStage);
 
-    // const limitStage = {
-    //     $limit: parseInt(limit)
-    // };
-    // pipeline.push(limitStage);
+    const limitStage = {
+        $limit: parseInt(limit)
+    };
+    pipeline.push(limitStage);
 
     // Execute the aggregation
     const videos = await Video.aggregate(pipeline);
@@ -497,7 +501,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     }
 
     if (!videos || !totalVideosCount) {
-        throw new ApiError(400, "Something went wrong while fetching the videos.")
+        throw new ApiError(400, "Something went wrong while fetching the videos. 33")
     }
 
     return res
@@ -516,10 +520,9 @@ const getAllVideos = asyncHandler(async (req, res) => {
         )
 })
 
-
 const getVideosByChannel = asyncHandler(async (req, res) => {
     const { usernameOrId } = req.params
-    const { page = 1, limit = 50, sortBy = "createdAt", sortType = "desc" } = req.query
+    const { page = 1, limit = 15, sortBy = "createdAt", sortType = "desc" } = req.query
 
     if (!usernameOrId) {
         throw new ApiError(400, "username or channelId is required")
@@ -549,9 +552,9 @@ const getVideosByChannel = asyncHandler(async (req, res) => {
 
         { $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 } },
 
-        // { $skip: (page - 1) * limit },
+        { $skip: (page - 1) * limit },
 
-        // { $limit: parseInt(limit) },
+        { $limit: parseInt(limit) },
 
         {
             $lookup: {

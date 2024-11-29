@@ -139,9 +139,13 @@ const deleteTweet = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Something went wrong while deleting the tweet.")
     }
 
+    console.log(tweet)
+
     if (tweet.images && tweet.images.length > 0) {
         tweet.images.map( async (imgUrl) => {
-            await deleteFromCloudinary(imgUrl)
+            try {
+                await deleteFromCloudinary(imgUrl)
+            } catch (error) {}
         })
     }
 
@@ -544,13 +548,13 @@ const getAllTweets = asyncHandler(async (req, res) => {
             $sort: { [sortBy]: sortType === 'asc' ? 1 : -1 }
         },
 
-        // {
-        //     $skip: (page - 1) * limit
-        // },
+        {
+            $skip: (page - 1) * limit
+        },
 
-        // {
-        //     $limit: parseInt(limit)
-        // }
+        {
+            $limit: parseInt(limit)
+        }
     ]
 
     // Fetch tweets with the combined pipeline
