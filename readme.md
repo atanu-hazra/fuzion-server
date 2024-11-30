@@ -1,0 +1,1 @@
+Fuzion's backend is built with Node.js and Express, handling user authentication, video and tweet uploads, playlists, comments, and social interactions, with MongoDB for data storage.
