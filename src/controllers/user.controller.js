@@ -78,8 +78,6 @@ const emailRegistration = asyncHandler(async (req, res) => {
 
     const verificationOTP = Math.floor(Math.random() * 900000) + 100000;
 
-    // console.log("verificationOTP: ", verificationOTP)
-
     registration.verificationOTP = verificationOTP
 
     try {
@@ -128,7 +126,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
     // Verify JWT and extract email
     const decoded = verifyToken(incomingToken);
-    console.log("decoded", decoded)
     const email = decoded.data;
 
     if (!email) {
@@ -182,7 +179,6 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const decoded = verifyToken(incomingToken);
-    console.log("decoded", decoded)
     const email = decoded.data;
 
     if (!email) {
@@ -376,7 +372,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         }
 
         const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
-        // console.log('accesss token refershed!')
         const cookiesOptions = {
             httpOnly: true,
             secure: true
@@ -445,7 +440,6 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 })
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    console.log(req.body)
     const { fullName, bio, username } = req.body
 
     // while updating files there should be a different end-point
@@ -455,8 +449,6 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findById(req.user._id).select("-password -refreshToken")
-
-    console.log(user)
 
     // changing the full name if modified
 
@@ -532,8 +524,6 @@ const updateEmail = asyncHandler(async (req, res) => {
 
     user.updateEmailOTP = updateEmailOTP
 
-    // console.log("forgotPasswordOTP: ", forgotPasswordOTP)
-
     const otpExpiry = new Date(Date.now() + 20 * 60 * 1000);
     user.updateEmailOTPExpiry = otpExpiry
 
@@ -579,7 +569,6 @@ const verifyUpdateEmailOTP = asyncHandler(async (req, res) => {
     }
     const decoded = verifyToken(updateEmailToken);
     const newEmail = decoded.data;
-    console.log(newEmail)
 
     if (!newEmail) {
         throw new ApiError(400, "Something went wrong while decoding the email.")
@@ -819,8 +808,6 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         },
     ]);
 
-    // console.log("channel: ", channel)
-
     if (!channel?.length) {
         throw new ApiError(404, "Channel does not exists!")
     }
@@ -914,8 +901,6 @@ const sendForgotPasswordOTP = asyncHandler(async (req, res) => {
     const forgotPasswordOTP = Math.floor(Math.random() * 900000) + 100000;
     user.forgotPasswordOTP = forgotPasswordOTP
 
-    // console.log("forgotPasswordOTP: ", forgotPasswordOTP)
-
     const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
     user.forgotPasswordOtpExpiry = otpExpiry
 
@@ -964,13 +949,9 @@ const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
     if (!incomingToken) {
         throw new ApiError(400, 'Token is required');
     }
-    console.log({ incomingToken })
     // Verify JWT and extract email
     const decoded = verifyToken(incomingToken);
-    console.log(1)
-    console.log("decoded", decoded)
     const email = decoded.data;
-    console.log(email)
 
     if (!email) {
         throw new ApiError(400, "Something went wrong while decoding the email.")
@@ -1033,7 +1014,6 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
     // Verify JWT and extract email
     const decoded = verifyToken(incomingToken);
-    console.log("decoded", decoded)
     const email = decoded.data;
 
     if (!email) {

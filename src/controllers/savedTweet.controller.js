@@ -212,7 +212,7 @@ const getSavedTweets = asyncHandler(async (req, res) => {
 
     if (!savedTweets[0].tweets || savedTweets[0].tweets.length === 0) {
         responseMessage = "No saved tweets found.";
-        responseData = {};
+        responseData = [];
     }
 
     return res

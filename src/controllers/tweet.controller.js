@@ -139,8 +139,6 @@ const deleteTweet = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Something went wrong while deleting the tweet.")
     }
 
-    console.log(tweet)
-
     if (tweet.images && tweet.images.length > 0) {
         tweet.images.map( async (imgUrl) => {
             try {
@@ -186,7 +184,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
     }
 
     // checking for current user
-    const userId = req.user ? req.user._id : null;
+    const userId = req.user._id || null
 
     // Aggregation pipeline to fetch tweets
     const tweets = await Tweet.aggregate([
@@ -252,37 +250,12 @@ const getUserTweets = asyncHandler(async (req, res) => {
         {
             $lookup: {
                 from: "savedtweets",
-                localField: "_id",
-                foreignField: "tweets",
-                as: "savedTweets",
+                let: { tweetId: "$_id", userId: userId },
                 pipeline: [
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "savedBy",
-                            foreignField: "_id",
-                            as: "savedBy",
-                            pipeline: [
-                                {
-                                    $project: {
-                                        fullName: 1,
-                                        username: 1,
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        $addFields: {
-                            savedBy: { $arrayElemAt: ["$savedBy", 0] }
-                        }
-                    },
-                    {
-                        $project: {
-                            savedBy: 1
-                        }
-                    }
-                ]
+                    { $match: { $expr: { $and: [{ $in: ["$$tweetId", "$tweets"] }, { $eq: ["$savedBy", "$$userId"] }] } } },
+                    { $project: { _id: 1 } }
+                ],
+                as: "savedByUser"
             }
         },
 
@@ -627,7 +600,6 @@ const getTweetById = asyncHandler(async (req, res) => {
     let tweet;
 
     try {
-        console.log(3)
         tweet = await Tweet.aggregate([
             {
                 $match: {
