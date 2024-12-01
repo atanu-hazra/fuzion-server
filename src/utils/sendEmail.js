@@ -69,7 +69,7 @@ const sendForgotPasswordMail = async (email, OTP, username) => {
         const mailOptions = {
             from: process.env.OAUTH2_MAIL_SENDER,
             to: [email],
-            subject: 'Verify your Email',
+            subject:`Reset your password ${username}`,
             html: `
                 <h1>Password Reset</h1>
                 <p>Hello ${username},</p>
