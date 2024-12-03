@@ -140,10 +140,10 @@ const deleteTweet = asyncHandler(async (req, res) => {
     }
 
     if (tweet.images && tweet.images.length > 0) {
-        tweet.images.map( async (imgUrl) => {
+        tweet.images.map(async (imgUrl) => {
             try {
                 await deleteFromCloudinary(imgUrl)
-            } catch (error) {}
+            } catch (error) { }
         })
     }
 
@@ -164,7 +164,9 @@ const getUserTweets = asyncHandler(async (req, res) => {
     const { usernameOrId } = req.params
     const { page = 1, limit = 30, sortBy = "createdAt", sortType = "desc" } = req.query
 
-    
+    // checking for current user
+    const userId = req.user ? req.user._id : null;
+
     const isObjectId = mongoose.Types.ObjectId.isValid(usernameOrId);
 
     const matchConditions = [
@@ -183,8 +185,6 @@ const getUserTweets = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User does not exist!")
     }
 
-    // checking for current user
-    const userId = req.user._id || null
 
     // Aggregation pipeline to fetch tweets
     const tweets = await Tweet.aggregate([
@@ -594,7 +594,7 @@ const getTweetById = asyncHandler(async (req, res) => {
 
     // Check if videoId is a valid MongoDB ObjectId
     if (!mongoose.isValidObjectId(tweetId)) {
-        throw new ApiError(400, "Invalid tweet ID format!");
+        throw new ApiError(400, "Invalid twe    et ID format!");
     }
 
     let tweet;
