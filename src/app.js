@@ -6,23 +6,23 @@ import { ApiError } from "./utils/ApiError.js"
 const app = express()
 
 
-// Applying CORS globally
+// Apply CORS globally with specific origins
+const allowedOrigins = [process.env.CORS_ORIGIN, 'https://cron-job.org'];
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true); // Allow the request
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true, // Allow credentials (cookies, etc.) to be sent
-}))
+}));
 
-// we can apply cors for specific routes also
-// var corsOptions = {
-//     origin: process.env.CORS_ORIGIN
-// };
-
-// // applying cors for specific routes
-// app.get('/products/:id',  cors(corsOptions), function (req, res, next) {
-//     res.json({ msg: 'This is CORS-enabled for only example.com.' });
-// });
-
+app.get('/health', (req, res) => {
+    res.status(200).send('Server is running');
+});
 
 // express configurations
 
@@ -37,7 +37,6 @@ app.use(express.static("public"));
 
 // Middleware to parse cookies from incoming requests
 app.use(cookieParser());
-
 
 // importing routes
 import userRouter from './routes/user.routes.js'
@@ -60,8 +59,6 @@ app.use("/api/v1/comments", commentRouter)
 app.use("/api/v1/playlists", playlistRouter)
 app.use("/api/v1/savedtweets", savedTweetRouter)
 app.use("/api/v1/reports", reportRouter)
-
-// http://localhost:8000/api/v1/users/register
 
 // middleware to send proper error response
 app.use((err, req, res, next) => {
