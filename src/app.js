@@ -5,7 +5,6 @@ import { ApiError } from "./utils/ApiError.js"
 
 const app = express()
 
-
 // Apply CORS globally with specific origins
 const allowedOrigins = [process.env.CORS_ORIGIN, 'https://cron-job.org'];
 
