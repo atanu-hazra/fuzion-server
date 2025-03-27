@@ -10,7 +10,7 @@ const allowedOrigins = [process.env.CORS_ORIGIN, 'https://cron-job.org'];
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (origin && allowedOrigins.includes(origin)) {
             callback(null, true); // Allow the request
         } else {
             callback(new Error('Not allowed by CORS'));
