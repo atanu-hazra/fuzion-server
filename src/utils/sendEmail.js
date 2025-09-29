@@ -5,6 +5,7 @@ const CLIENT_ID = process.env.CLIENT_ID
 const CLIENT_SECRET = process.env.CLIENT_SECRET
 const REDIRECT_URI = process.env.REDIRECT_URI
 const REFRESH_TOKEN = process.env.REFRESH_TOKEN
+const OAUTH2_USER = process.env.OAUTH2_USER
 
 const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
 oAuth2Client.setCredentials({ refresh_token: REFRESH_TOKEN })
@@ -16,16 +17,22 @@ const sendVerificationMail = async (email, OTP) => {
         const accessToken = await oAuth2Client.getAccessToken()
 
         const transport = nodemailer.createTransport({
-            service: 'gmail',
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
             auth: {
-                type: 'OAuth2',
-                user: process.env.OAUTH2_USER,
+                type: "OAuth2",
+                user: OAUTH2_USER,
                 clientId: CLIENT_ID,
                 clientSecret: CLIENT_SECRET,
                 refreshToken: REFRESH_TOKEN,
-                accessToken: accessToken
-            }
-        })
+                accessToken: accessToken?.token,
+            },
+            tls: {
+                rejectUnauthorized: false,
+            },
+            connectionTimeout: 60000,
+        });
 
         const mailOptions = {
             from: process.env.OAUTH2_MAIL_SENDER,
@@ -55,21 +62,28 @@ const sendForgotPasswordMail = async (email, OTP, username) => {
         const accessToken = await oAuth2Client.getAccessToken()
 
         const transport = nodemailer.createTransport({
-            service: 'gmail',
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
             auth: {
-                type: 'OAuth2',
-                user: process.env.OAUTH2_USER,
+                type: "OAuth2",
+                user: OAUTH2_USER,
                 clientId: CLIENT_ID,
                 clientSecret: CLIENT_SECRET,
                 refreshToken: REFRESH_TOKEN,
-                accessToken: accessToken
-            }
-        })
+                accessToken: accessToken?.token,
+            },
+            tls: {
+                rejectUnauthorized: false,
+            },
+            connectionTimeout: 60000,
+        });
+
 
         const mailOptions = {
             from: process.env.OAUTH2_MAIL_SENDER,
             to: [email],
-            subject:`Reset your password ${username}`,
+            subject: `Reset your password ${username}`,
             html: `
                 <h1>Password Reset</h1>
                 <p>Hello ${username},</p>
